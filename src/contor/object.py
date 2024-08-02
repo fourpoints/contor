@@ -1,7 +1,11 @@
 import math
 from itertools import product as cartesian_product
 from operator import itemgetter
+from typing import TypedDict, Literal, NotRequired
+from collections.abc import Mapping
 
+
+# Constants
 
 K = math.cos(math.radians(30))  # outer/inner radius ratio
 DIRECTIONS = {
@@ -14,53 +18,131 @@ DIRECTIONS = {
 }
 
 
+
+# GeoJSON
+
+## Primitives
+
+type CoordinatePoint = list[float, float]
+type CoordinateCollection = list[CoordinatePoint]
+type Coordinates = CoordinatePoint | CoordinateCollection
+type Direction = Literal["N", "NE", "SE", "S", "SW", "NW"]
+
+## Geometries
+
+class Geometry(TypedDict):
+    type: str
+    coordinate: CoordinatePoint
+
+
+class Point(Geometry):
+    type: Literal["Point"]
+    coordinates: CoordinatePoint
+
+
+class LineString(Geometry):
+    type: Literal["LineString"]
+    coordinates: CoordinateCollection
+
+## Properties
+
+class Properties(TypedDict):
+    subType: str
+
+
+## Features
+
+class Feature:
+    type: Literal["Feature"]
+    geometry: Geometry
+    properties: NotRequired[Properties]
+
+
+class FeatureCollection(TypedDict):
+    type: Literal["GeometryCollection"]
+    features: list[Feature, ...]
+
+
+# GeoJSON subtypes
+
+class TileProperties(Properties):
+    subType: Literal["Hexagon"]
+    outerRadius: float
+    innerRadius: float
+    neighbor: Mapping[Direction, "Tile"]
+    _id: list[int, int]
+
+
+class PathProperties(Properties):
+    subType: Literal["Path"]
+
+
+class Tile(Feature):
+    geometry: Point
+    properties: TileProperties
+
+
+class Path(Feature):
+    geometry: LineString
+    properties: PathProperties
+
+
+class TileCollection(FeatureCollection, TypedDict):
+    features: list[Tile, ...]
+
+
+# Implementation
+
 def _j(i, j):
     return -j+i//2
 
 
-def _tile_x(R, i, j):
-    return i*3/2*R
+def _tile_xy(R, i, j):
+    return [i*3/2*R, (i - 2*j)*K*R]
 
 
-def _tile_y(R, i, j):
-    return (i - 2*j)*K*R
-
-
-def _tile(R, i, j):
+def _tile(R, i, j) -> Tile:
     return {
-        "type": "Tile",
-        "x": _tile_x(R, i, j),
-        "y": _tile_y(R, i, j),
-        "R": R,
-        "r": K*R,
-        "_i": i,
-        "_j": j,
+        "type": "Feature",
+        "geometry": {
+            "type": "Point",
+            "coordinates": _tile_xy(R, i, j),
+        },
+        "properties": {
+            "subType": "Hexagon",
+            "outerRadius": R,
+            "innerRadius": K*R,
+            "neighbors": {},
+            "_id": [i, j],
+        },
     }
 
 
 def _neighbor_index(tile, direction):
-    i, j = tile["_i"], tile["_j"]
+    i, j = tile["properties"]["_id"]
     di, dj = DIRECTIONS[direction]
     ni, nj = i + di, j + dj
     return (ni, nj)
 
 
-def make_grid(radius, width, height):
+def make_grid(radius, width, height) -> TileCollection:
     tiles = {
         (i, _j(i, j)): _tile(radius, i, _j(i, j))
         for i, j in cartesian_product(range(width), range(height))
     }
 
     for tile in tiles.values():
-        neighbors = tile["neighbor"] = {}
+        neighbors = tile["properties"]["neighbors"]
         for direction in DIRECTIONS:
             ni, nj = _neighbor_index(tile, direction)
             neighbor = tiles.get((ni, nj))
             if neighbor:
                 neighbors[direction] = neighbor
 
-    return list(tiles.values())
-
+    return {
+        "type": "FeatureCollection",
+        "features": list(tiles.values()),
+    }
 
 example_path = [
     (0, 0),
@@ -91,20 +173,34 @@ example_path = [
 ]
 
 
-def make_path(R, points):
-    return [
-        (_tile_x(R, i, _j(i, j)), _tile_y(R, i, _j(i, j)))
-        for i, j in points]
+def make_path(R, points) -> Path:
+    return {
+        "type": "Feature",
+        "geometry": {
+            "type": "LineString",
+            "coordinates": [
+                _tile_xy(R, i, _j(i, j))
+                for i, j in points
+            ],
+        },
+        "properties": {
+            "subType": "Path",
+        }
+    }
 
 
-def vectorize(func):
-    return lambda obj: list(map(func, obj))
+# Helper functions
+
+def coords(feature: Feature) -> Coordinates:
+    return feature["geometry"]["coordinates"]
 
 
-xy = itemgetter("x", "y")
-xs = vectorize(itemgetter(0))
-ys = vectorize(itemgetter(1))
-neighbors = itemgetter("neighbor")
+def neighbors(tile: Tile) -> Mapping[Direction, Tile]:
+    return tile["properties"]["neighbors"]
+
+
+def _id(tile: Tile) -> list[int, int]:
+    return tile["properties"]["_id"]
 
 
 if __name__ == "__main__":
@@ -114,15 +210,15 @@ if __name__ == "__main__":
     path = make_path(R, example_path)
     tiles = make_grid(radius=R, height=7, width=8)
 
-    plt.plot(xs(path), ys(path), color="dodgerblue")
+    plt.plot(*zip(*coords(path)), color="dodgerblue")
 
-    for tile in tiles:
-        plt.scatter(*xy(tile), color="crimson")
-        plt.text(*xy(tile), f'({tile["_i"]}, {_j(tile["_i"], tile["_j"])})')
+    for tile in tiles["features"]:
+        plt.scatter(*coords(tile), color="crimson")
+        plt.text(*coords(tile), f'({_id(tile)[0]}, {_j(*_id(tile))})')
 
-    test = tiles[47]
+    test = tiles["features"][47]
     for n in neighbors(test).values():
-        plt.plot(*zip(xy(test), xy(n)), color="crimson")
+        plt.plot(*zip(coords(test), coords(n)), color="crimson")
 
     plt.gca().set_aspect('equal')
     plt.show()
