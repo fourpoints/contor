@@ -124,7 +124,7 @@ def _list_add(a, b):
 
 
 def _neighbor_index(tile, direction):
-    return _list_add(tile["properties"]["_id"], DIRECTIONS[direction])
+    return _list_add(_id(tile), DIRECTIONS[direction])
 
 
 def make_grid(radius, width, height) -> TileCollection:
