@@ -1,6 +1,6 @@
 import math
 from itertools import product as cartesian_product
-from operator import itemgetter
+from operator import itemgetter, add
 from typing import TypedDict, Literal, NotRequired
 from collections.abc import Mapping
 
@@ -32,7 +32,7 @@ type Direction = Literal["N", "NE", "SE", "S", "SW", "NW"]
 
 class Geometry(TypedDict):
     type: str
-    coordinate: CoordinatePoint
+    coordinates: CoordinatePoint
 
 
 class Point(Geometry):
@@ -53,7 +53,7 @@ class Properties(TypedDict):
 
 ## Features
 
-class Feature:
+class Feature(TypedDict):
     type: Literal["Feature"]
     geometry: Geometry
     properties: NotRequired[Properties]
@@ -70,7 +70,7 @@ class TileProperties(Properties):
     subType: Literal["Hexagon"]
     outerRadius: float
     innerRadius: float
-    neighbor: Mapping[Direction, "Tile"]
+    neighbors: Mapping[Direction, "Tile"]
     _id: list[int, int]
 
 
@@ -88,7 +88,7 @@ class Path(Feature):
     properties: PathProperties
 
 
-class TileCollection(FeatureCollection, TypedDict):
+class TileCollection(FeatureCollection):
     features: list[Tile, ...]
 
 
@@ -119,11 +119,12 @@ def _tile(R, i, j) -> Tile:
     }
 
 
+def _list_add(a, b):
+    return list(map(add, a, b))
+
+
 def _neighbor_index(tile, direction):
-    i, j = tile["properties"]["_id"]
-    di, dj = DIRECTIONS[direction]
-    ni, nj = i + di, j + dj
-    return (ni, nj)
+    return _list_add(tile["properties"]["_id"], DIRECTIONS[direction])
 
 
 def make_grid(radius, width, height) -> TileCollection:
@@ -199,6 +200,14 @@ def coords(feature: Feature) -> Coordinates:
 
 def neighbors(tile: Tile) -> Mapping[Direction, Tile]:
     return tile["properties"]["neighbors"]
+
+
+def inner_radius(tile: Tile) -> float:
+    return tile["properties"]["innerRadius"]
+
+
+def outer_radius(tile: Tile) -> float:
+    return tile["properties"]["outerRadius"]
 
 
 def _id(tile: Tile) -> list[int, int]:
