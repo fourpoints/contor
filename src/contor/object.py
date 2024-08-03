@@ -18,7 +18,6 @@ DIRECTIONS = {
 }
 
 
-
 # GeoJSON
 
 ## Primitives
@@ -27,6 +26,7 @@ type CoordinatePoint = list[float, float]
 type CoordinateCollection = list[CoordinatePoint]
 type Coordinates = CoordinatePoint | CoordinateCollection
 type Direction = Literal["N", "NE", "SE", "S", "SW", "NW"]
+
 
 ## Geometries
 
@@ -43,6 +43,7 @@ class Point(Geometry):
 class LineString(Geometry):
     type: Literal["LineString"]
     coordinates: CoordinateCollection
+
 
 ## Properties
 
@@ -143,6 +144,7 @@ def make_grid(radius, width, height) -> TileCollection:
         "type": "FeatureCollection",
         "features": list(tiles.values()),
     }
+
 
 example_path = [
     (0, 0),
