@@ -1,6 +1,6 @@
 import math
+import operator
 from itertools import product as cartesian_product
-from operator import itemgetter, add
 from typing import TypedDict, Literal, NotRequired
 from collections.abc import Mapping
 
@@ -25,6 +25,7 @@ DIRECTIONS = {
 type CoordinatePoint = list[float, float]
 type CoordinateCollection = list[CoordinatePoint]
 type Coordinates = CoordinatePoint | CoordinateCollection
+
 type Direction = Literal["N", "NE", "SE", "S", "SW", "NW"]
 
 
@@ -60,7 +61,7 @@ class Feature(TypedDict):
 
 
 class FeatureCollection(TypedDict):
-    type: Literal["GeometryCollection"]
+    type: Literal["FeatureCollection"]
     features: list[Feature, ...]
 
 
@@ -94,8 +95,8 @@ class TileCollection(FeatureCollection):
 
 # Implementation
 
-def _j(i, j):
-    return -j+i//2
+def _ij(i, j):
+    return (i, -j+i//2)
 
 
 def _tile_xy(R, i, j):
@@ -120,7 +121,7 @@ def _tile(R, i, j) -> Tile:
 
 
 def _list_add(a, b):
-    return list(map(add, a, b))
+    return list(map(operator.add, a, b))
 
 
 def _neighbor_index(tile, direction):
@@ -129,7 +130,7 @@ def _neighbor_index(tile, direction):
 
 def make_grid(radius, width, height) -> TileCollection:
     tiles = {
-        (i, _j(i, j)): _tile(radius, i, _j(i, j))
+        _ij(i, j): _tile(radius, *_ij(i, j))
         for i, j in cartesian_product(range(width), range(height))
     }
 
@@ -182,7 +183,7 @@ def make_path(R, points) -> Path:
         "geometry": {
             "type": "LineString",
             "coordinates": [
-                _tile_xy(R, i, _j(i, j))
+                _tile_xy(R, *_ij(i, j))
                 for i, j in points
             ],
         },
@@ -225,7 +226,7 @@ if __name__ == "__main__":
 
     for tile in tiles["features"]:
         plt.scatter(*coords(tile), color="crimson")
-        plt.text(*coords(tile), f'({_id(tile)[0]}, {_j(*_id(tile))})')
+        plt.text(*coords(tile), _ij(*_id(tile)))
 
     test = tiles["features"][47]
     for n in neighbors(test).values():
