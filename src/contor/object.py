@@ -93,7 +93,7 @@ class TileCollection(FeatureCollection):
     features: list[Tile, ...]
 
 
-# Implementation
+# Constructors
 
 def _ij(i, j):
     return (i, -j+i//2)
@@ -129,6 +129,17 @@ def _neighbor_index(tile, direction):
 
 
 def make_grid(radius, width, height) -> TileCollection:
+    """Creates a feature collection of hexagonal tile objects.
+
+    Radius is the outer radius of the hexagon. Width and height refers to the
+    number of hexagons in each axis.
+
+    ---
+
+    The relation between the outer and inner radius of a hexagon is determined
+    by r/R = K, where K = cos(deg(30)). These are available on the tile objects
+    by using the `inner_radius` and `outer_radius` functions.
+    """
     tiles = {
         _ij(i, j): _tile(radius, *_ij(i, j))
         for i, j in cartesian_product(range(width), range(height))
@@ -148,42 +159,18 @@ def make_grid(radius, width, height) -> TileCollection:
     }
 
 
-example_path = [
-    (0, 0),
-    (1, 0),
-    (1, 1),
-    (0, 2),
-    (0, 3),
-    (1, 3),
-    (1, 4),
-    (1, 5),
-    (2, 6),
-    (3, 5),
-    (3, 4),
-    (4, 4),
-    (4, 3),
-    (3, 2),
-    (3, 1),
-    (3, 0),
-    (4, 0),
-    (5, 0),
-    (5, 1),
-    (5, 2),
-    (6, 3),
-    (6, 4),
-    (5, 4),
-    (5, 5),
-    (6, 6),
-]
+def make_path(radius, points) -> Path:
+    """Creates a line string feature of a path.
 
-
-def make_path(R, points) -> Path:
+    The points are assumed to lie on a hexagonal grid. The radius is the outer
+    radius of the hexagonal grid.
+    """
     return {
         "type": "Feature",
         "geometry": {
             "type": "LineString",
             "coordinates": [
-                _tile_xy(R, *_ij(i, j))
+                _tile_xy(radius, *_ij(i, j))
                 for i, j in points
             ],
         },
@@ -193,7 +180,7 @@ def make_path(R, points) -> Path:
     }
 
 
-# Helper functions
+## Object functions
 
 def coords(feature: Feature) -> Coordinates:
     return feature["geometry"]["coordinates"]
@@ -217,6 +204,34 @@ def _id(tile: Tile) -> list[int, int]:
 
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
+
+    example_path = [
+        (0, 0),
+        (1, 0),
+        (1, 1),
+        (0, 2),
+        (0, 3),
+        (1, 3),
+        (1, 4),
+        (1, 5),
+        (2, 6),
+        (3, 5),
+        (3, 4),
+        (4, 4),
+        (4, 3),
+        (3, 2),
+        (3, 1),
+        (3, 0),
+        (4, 0),
+        (5, 0),
+        (5, 1),
+        (5, 2),
+        (6, 3),
+        (6, 4),
+        (5, 4),
+        (5, 5),
+        (6, 6),
+    ]
 
     R = 5
     path = make_path(R, example_path)
