@@ -72,7 +72,7 @@ class TileProperties(Properties):
     outerRadius: float
     innerRadius: float
     neighbors: Mapping[Direction, "Tile"]
-    _id: list[int, int]
+    _id: tuple[int, int]
 
 
 class PathProperties(Properties):
@@ -128,7 +128,7 @@ def _neighbor_index(tile, direction):
     return _list_add(_id(tile), DIRECTIONS[direction])
 
 
-def make_grid(radius, width, height) -> TileCollection:
+def make_grid(radius: float, width: int, height: int) -> TileCollection:
     """Creates a feature collection of hexagonal tile objects.
 
     Radius is the outer radius of the hexagon. Width and height refers to the
@@ -159,7 +159,7 @@ def make_grid(radius, width, height) -> TileCollection:
     }
 
 
-def make_path(radius, points) -> Path:
+def make_path(radius: float, points: CoordinateCollection) -> Path:
     """Creates a line string feature of a path.
 
     The points are assumed to lie on a hexagonal grid. The radius is the outer
